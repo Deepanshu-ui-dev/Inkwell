@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
-const User = require("./models/user");
+const User = require("../models/user");
 
 async function makeAdmin() {
   const email = process.argv[2];
