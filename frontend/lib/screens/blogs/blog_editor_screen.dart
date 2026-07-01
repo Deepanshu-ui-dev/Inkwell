@@ -6,6 +6,7 @@ import 'package:blog_app/utils/app_theme.dart';
 import 'package:blog_app/utils/constants.dart';
 import 'package:blog_app/utils/validators.dart';
 import 'package:blog_app/widgets/app_snackbar.dart';
+import 'package:blog_app/widgets/global_background.dart';
 import 'package:blog_app/widgets/responsive_wrapper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -205,9 +206,10 @@ class _BlogEditorScreenState extends State<BlogEditorScreen> {
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ResponsiveWrapper(
+      body: GlobalBackground(
+        child: Form(
+          key: _formKey,
+          child: ResponsiveWrapper(
           maxWidth: 720,
           child: ListView(
             padding: EdgeInsets.fromLTRB(24, 16, 24, 80),
@@ -383,6 +385,7 @@ class _BlogEditorScreenState extends State<BlogEditorScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

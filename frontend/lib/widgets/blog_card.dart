@@ -31,7 +31,7 @@ class _BlogCardState extends State<BlogCard> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.typography;
-    final authorName = widget.blog.author?.name ?? 'Author';
+    final authorName = widget.blog.author?.name ?? 'Deepanshu kaushik';
     final hasImage = widget.blog.coverImageUrl != null &&
         widget.blog.coverImageUrl!.isNotEmpty;
 
@@ -43,19 +43,19 @@ class _BlogCardState extends State<BlogCard> {
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
-        scale: _pressed ? 0.985 : 1.0,
+        scale: _pressed ? 0.983 : 1.0,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: c.surfaceCard,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: c.border, width: 1),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: c.border, width: 1.2),
             boxShadow: [
               BoxShadow(
                 color: c.ink.withValues(alpha: 0.03),
-                blurRadius: 16,
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -65,7 +65,7 @@ class _BlogCardState extends State<BlogCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Left: content
+                // ── Left: content ──────────────────────────────────
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,51 +129,31 @@ class _BlogCardState extends State<BlogCard> {
                   ),
                 ),
 
-                // Right: thumbnail
-                if (hasImage) ...[
-                  const SizedBox(width: 14),
+                // ── Right: thumbnail (96×96, up from 82×82) ──────────
+                const SizedBox(width: 14),
+                if (hasImage)
                   Hero(
                     tag: 'blog-cover-${widget.blog.id}',
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       child: CachedNetworkImage(
                         imageUrl: widget.blog.coverImageUrl!,
-                        width: 82,
-                        height: 82,
+                        width: 96,
+                        height: 96,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(width: 82, height: 82, color: c.surface),
-                        errorWidget: (_, __, ___) => Container(
-                          width: 82,
-                          height: 82,
-                          color: c.surface,
-                          child: Icon(Icons.image_outlined,
-                              color: c.inkMuted, size: 22),
+                        placeholder: (_, __) => Container(
+                          width: 96, height: 96,
+                          decoration: BoxDecoration(
+                            color: c.surface,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
+                        errorWidget: (_, __, ___) => _NoImageBox(c: c, size: 96),
                       ),
                     ),
-                  ),
-                ] else ...[
-                  const SizedBox(width: 14),
-                  Container(
-                    width: 82,
-                    height: 82,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          c.accentDeep.withValues(alpha: 0.8),
-                          c.heroBg,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(Icons.edit_note_rounded,
-                        size: 28, color: c.accent.withValues(alpha: 0.5)),
-                  ),
-                ],
+                  )
+                else
+                  _NoImageBox(c: c, size: 96),
               ],
             ),
           ),
@@ -191,6 +171,33 @@ class _BlogCardState extends State<BlogCard> {
         .trim();
     return s.length > 110 ? '${s.substring(0, 110)}…' : s;
   }
+}
+
+// ── No-image placeholder ──────────────────────────────────────────────────────
+class _NoImageBox extends StatelessWidget {
+  final AppColorsExtension c;
+  final double size;
+  const _NoImageBox({required this.c, required this.size});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          c.accentDeep.withValues(alpha: 0.85),
+          c.heroBg,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    alignment: Alignment.center,
+    child: Icon(Icons.edit_note_rounded,
+        size: 30, color: c.accent.withValues(alpha: 0.45)),
+  );
 }
 
 // ── Blog Card Skeleton ────────────────────────────────────────────────────────
@@ -232,25 +239,25 @@ class _BlogCardSkeletonState extends State<BlogCardSkeleton>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: c.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: c.border),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: c.border, width: 1.2),
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _bar(c, 50, 20, _anim.value),
+              _bar(c, 60, 18, _anim.value),
               const SizedBox(height: 10),
-              _bar(c, double.infinity, 15, _anim.value),
+              _bar(c, double.infinity, 14, _anim.value),
               const SizedBox(height: 6),
-              _bar(c, double.infinity, 15, _anim.value * 0.9),
+              _bar(c, double.infinity, 14, _anim.value * 0.9),
               const SizedBox(height: 6),
-              _bar(c, 140, 15, _anim.value * 0.8),
+              _bar(c, 150, 14, _anim.value * 0.8),
               const SizedBox(height: 14),
               _bar(c, 120, 12, _anim.value * 0.7),
             ]),
           ),
           const SizedBox(width: 14),
-          _square(c, 82, _anim.value),
+          _square(c, 96, _anim.value),
         ]),
       ),
     );
@@ -272,7 +279,7 @@ class _BlogCardSkeletonState extends State<BlogCardSkeleton>
         height: size,
         decoration: BoxDecoration(
           color: c.shimmerBase.withValues(alpha: alpha),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
         ),
       );
 }

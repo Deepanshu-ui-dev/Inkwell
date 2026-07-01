@@ -1,6 +1,17 @@
 import 'package:blog_app/models/user_model.dart';
 import 'package:blog_app/utils/constants.dart';
 
+// Resolves a potentially relative image URL to an absolute one.
+// - Already absolute (http/https) → returned as-is
+// - Starts with /uploads/           → prepended with base host
+// - Null / empty                    → null
+String? _resolveUrl(String? raw, String base) {
+  if (raw == null || raw.isEmpty) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('/')) return '$base$raw';
+  return raw; // relative without leading slash — return unchanged
+}
+
 class BlogModel {
   final String id;
   final String title;
@@ -52,14 +63,21 @@ class BlogModel {
       likedBy = rawLikedBy.map((t) => t.toString()).toList();
     }
 
-    String content = json['content'] as String? ?? '';
-    final base = AppConstants.baseUrl.replaceAll('/api', '');
-    content = content.replaceAll('](/uploads/', ']($base/uploads/');
+    // Derive the server base URL (strip /api suffix) e.g. https://inkwell-ip7n.onrender.com
+    final base = AppConstants.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
 
-    String? coverImageUrl = json['coverImageUrl'] as String?;
-    if (coverImageUrl != null && coverImageUrl.startsWith('/uploads')) {
-      coverImageUrl = '$base$coverImageUrl';
-    }
+    // Fix relative image URLs embedded in markdown content
+    String content = json['content'] as String? ?? '';
+    content = content.replaceAllMapped(
+      RegExp(r'!\[([^\]]*)\]\((/[^)]+)\)'),
+      (m) {
+        final path = m[2]!;
+        if (path.startsWith('http')) return m[0]!; // already absolute
+        return '![${m[1]}]($base$path)';
+      },
+    );
+
+    final coverImageUrl = _resolveUrl(json['coverImageUrl'] as String?, base);
 
     return BlogModel(
       id: json['_id'] as String? ?? json['id'] as String? ?? '',

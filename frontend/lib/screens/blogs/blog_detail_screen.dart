@@ -16,6 +16,7 @@ import 'package:blog_app/widgets/like_button.dart';
 import 'package:blog_app/widgets/loading_indicator.dart';
 import 'package:blog_app/widgets/tag_chip.dart';
 import 'package:blog_app/widgets/app_snackbar.dart';
+import 'package:blog_app/widgets/global_background.dart';
 import 'package:blog_app/widgets/responsive_wrapper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -34,8 +35,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   List<CommentModel> _comments = [];
   bool _loadingComments = false;
   bool _postingComment = false;
-  bool _stickyTitle = false;
-  double _progress = 0;
+
+  // ── ValueNotifiers replace setState so only the affected widgets rebuild ──
+  final _progressNotifier = ValueNotifier<double>(0);
+  final _stickyTitleNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -44,23 +47,34 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       context.read<BlogProvider>().fetchBlog(widget.blogId);
       _loadComments();
     });
-    _scrollController.addListener(() {
-      final show = _scrollController.offset > 200;
-      if (show != _stickyTitle) setState(() => _stickyTitle = show);
-      if (_scrollController.hasClients &&
-          _scrollController.position.maxScrollExtent > 0) {
-        setState(() => _progress =
-            (_scrollController.offset /
-                    _scrollController.position.maxScrollExtent)
-                .clamp(0.0, 1.0));
-      }
-    });
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final offset = _scrollController.offset;
+    final max = _scrollController.hasClients
+        ? _scrollController.position.maxScrollExtent
+        : 0.0;
+
+    // Update sticky title
+    final shouldShow = offset > 200;
+    if (shouldShow != _stickyTitleNotifier.value) {
+      _stickyTitleNotifier.value = shouldShow;
+    }
+
+    // Update reading progress
+    if (max > 0) {
+      _progressNotifier.value = (offset / max).clamp(0.0, 1.0);
+    }
   }
 
   @override
   void dispose() {
     _commentController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _progressNotifier.dispose();
+    _stickyTitleNotifier.dispose();
     super.dispose();
   }
 
@@ -152,7 +166,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     if (context.watch<BlogProvider>().isLoadingDetail || blog == null) {
       return Scaffold(
         backgroundColor: c.background,
-        body: const Center(child: LoadingIndicator()),
+        body: const _BlogDetailSkeleton(),
       );
     }
 
@@ -160,13 +174,15 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
 
     return Scaffold(
       backgroundColor: c.background,
-      body: Stack(children: [
-        ResponsiveWrapper(
+      body: GlobalBackground(
+        child: Stack(children: [
+          ResponsiveWrapper(
           maxWidth: 820,
           child: CustomScrollView(
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
+              // ── App bar (uses ValueListenableBuilder for title opacity) ──
               SliverAppBar(
                 expandedHeight: blog.coverImageUrl != null ? 260 : 0,
                 pinned: true, floating: false,
@@ -177,11 +193,14 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                   child: _Btn(icon: Icons.arrow_back_ios_new_rounded,
                       onTap: () => Navigator.pop(context)),
                 ),
-                title: AnimatedOpacity(
-                  opacity: _stickyTitle ? 1 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(blog.title, style: t.titleMedium,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: ValueListenableBuilder<bool>(
+                  valueListenable: _stickyTitleNotifier,
+                  builder: (_, show, __) => AnimatedOpacity(
+                    opacity: show ? 1 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(blog.title, style: t.titleMedium,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
                 ),
                 actions: [
                   _Btn(key: const Key('share_blog_button'),
@@ -255,7 +274,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                           ),
                           const SizedBox(width: 10),
                           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(blog.author?.name ?? 'Author', style: t.labelLarge),
+                            Text(blog.author?.name ?? 'Deepanshu kaushik', style: t.labelLarge),
                             Text(
                               '${timeago.format(blog.createdAt)} · ${_readTime(blog.content)} min read',
                               style: t.bodySmall,
@@ -353,7 +372,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                         }),
 
                       const SizedBox(height: 100),
-                    ].animate(interval: 25.ms).fade(duration: 280.ms),
+                    ],
                   ),
                 ),
               ),
@@ -361,22 +380,27 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
           ),
         ),
 
-        // Reading progress bar
+        // ── Reading progress bar — only this widget repaints on scroll ──
         Positioned(
           top: 0, left: 0, right: 0,
           child: SafeArea(
             bottom: false,
-            child: LayoutBuilder(builder: (ctx, constraints) => Stack(children: [
-              Container(height: 3, color: c.border.withValues(alpha: 0.4)),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 80),
-                height: 3,
-                width: constraints.maxWidth * _progress,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [c.accent, c.accentWarm]),
-                ),
+            child: ValueListenableBuilder<double>(
+              valueListenable: _progressNotifier,
+              builder: (ctx, progress, __) => LayoutBuilder(
+                builder: (ctx, constraints) => Stack(children: [
+                  Container(height: 3, color: c.border.withValues(alpha: 0.4)),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 80),
+                    height: 3,
+                    width: constraints.maxWidth * progress,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [c.accent, c.accentWarm]),
+                    ),
+                  ),
+                ]),
               ),
-            ])),
+            ),
           ),
         ),
 
@@ -418,6 +442,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
           ),
         ),
       ]),
+      ),
     );
   }
 
@@ -529,4 +554,101 @@ class _SignInToComment extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BlogDetailSkeleton extends StatefulWidget {
+  const _BlogDetailSkeleton();
+  @override
+  State<_BlogDetailSkeleton> createState() => _BlogDetailSkeletonState();
+}
+
+class _BlogDetailSkeletonState extends State<_BlogDetailSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat(reverse: true);
+    _anim = Tween(begin: 0.4, end: 1.0).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SafeArea(
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (_, __) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _bar(c, 80, 24, _anim.value),
+              const SizedBox(height: 14),
+              _bar(c, double.infinity, 38, _anim.value),
+              const SizedBox(height: 8),
+              _bar(c, 240, 38, _anim.value * 0.9),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: c.shimmerBase.withValues(alpha: _anim.value),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _bar(c, 100, 14, _anim.value * 0.8),
+                      const SizedBox(height: 6),
+                      _bar(c, 140, 12, _anim.value * 0.7),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              _bar(c, double.infinity, 16, _anim.value),
+              const SizedBox(height: 10),
+              _bar(c, double.infinity, 16, _anim.value * 0.95),
+              const SizedBox(height: 10),
+              _bar(c, double.infinity, 16, _anim.value * 0.9),
+              const SizedBox(height: 10),
+              _bar(c, 200, 16, _anim.value * 0.85),
+              const SizedBox(height: 24),
+              _bar(c, double.infinity, 16, _anim.value * 0.8),
+              const SizedBox(height: 10),
+              _bar(c, double.infinity, 16, _anim.value * 0.75),
+              const SizedBox(height: 10),
+              _bar(c, 150, 16, _anim.value * 0.7),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bar(AppColorsExtension c, double w, double h, double alpha) =>
+      Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: c.shimmerBase.withValues(alpha: alpha),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
 }

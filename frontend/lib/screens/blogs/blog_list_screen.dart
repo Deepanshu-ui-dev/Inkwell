@@ -6,16 +6,19 @@ import 'package:blog_app/models/blog_model.dart';
 import 'package:blog_app/providers/auth_provider.dart';
 import 'package:blog_app/providers/blog_provider.dart';
 import 'package:blog_app/providers/theme_provider.dart';
+import 'package:blog_app/services/api_service.dart';
 import 'package:blog_app/utils/app_theme.dart';
 import 'package:blog_app/utils/constants.dart';
 import 'package:blog_app/widgets/blog_card.dart';
 import 'package:blog_app/widgets/like_button.dart';
+import 'package:blog_app/widgets/app_snackbar.dart';
+import 'package:blog_app/widgets/global_background.dart';
 import 'package:blog_app/widgets/loading_indicator.dart';
 import 'package:blog_app/widgets/responsive_wrapper.dart';
 import 'package:blog_app/widgets/tag_chip.dart';
 import 'package:blog_app/widgets/app_footer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class BlogListScreen extends StatefulWidget {
@@ -26,18 +29,42 @@ class BlogListScreen extends StatefulWidget {
 
 class _BlogListScreenState extends State<BlogListScreen> {
   final _scrollController = ScrollController();
+  bool _serverWarming = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BlogProvider>().fetchBlogs();
+      _warmUpAndFetch();
     });
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 250) {
         context.read<BlogProvider>().fetchMoreBlogs();
       }
+    });
+  }
+
+  /// Ping the health endpoint first. If it's slow (Render cold start),
+  /// show a "warming up" banner so users know the server is waking.
+  Future<void> _warmUpAndFetch() async {
+    final bp = context.read<BlogProvider>();
+    try {
+      final ping = await ApiService.instance.dio
+          .get('/health')
+          .timeout(const Duration(seconds: 5));
+      if (ping.statusCode == 200) {
+        // Server is live — fetch immediately
+        bp.fetchBlogs();
+        return;
+      }
+    } catch (_) {
+      // Server is cold or health failed — show banner, still attempt fetch
+      if (mounted) setState(() => _serverWarming = true);
+    }
+    // Attempt main fetch regardless
+    bp.fetchBlogs().then((_) {
+      if (mounted) setState(() => _serverWarming = false);
     });
   }
 
@@ -66,26 +93,43 @@ class _BlogListScreenState extends State<BlogListScreen> {
 
     return Scaffold(
       backgroundColor: c.background,
-      body: ResponsiveWrapper(
-        maxWidth: 820,
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _HeroHeader(auth: auth)),
+      body: GlobalBackground(
+        child: ResponsiveWrapper(
+          maxWidth: 1200,
+        addPadding: true,
+        child: LiquidPullToRefresh(
+          onRefresh: () => context.read<BlogProvider>().fetchBlogs(refresh: true),
+          color: c.surfaceCard,
+          backgroundColor: c.accent,
+          height: 100,
+          animSpeedFactor: 2,
+          showChildOpacityTransition: false,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _HeroHeader(auth: auth)),
 
-            if (bp.isLoading && bp.blogs.isEmpty)
-              _skeletons()
-            else if (bp.errorMessage != null && bp.blogs.isEmpty)
-              _error(context, bp)
-            else if (bp.blogs.isEmpty)
-              _empty(context)
-            else
-              _feed(context, bp, userId),
+              // Server warm-up banner
+              if (_serverWarming)
+                SliverToBoxAdapter(
+                  child: _WarmUpBanner(c: c),
+                ),
 
-            const SliverToBoxAdapter(child: AppFooter()),
-          ],
+              if (bp.isLoading && bp.blogs.isEmpty)
+                _skeletons()
+              else if (bp.errorMessage != null && bp.blogs.isEmpty)
+                _error(context, bp)
+              else if (bp.blogs.isEmpty)
+                _empty(context)
+              else
+                _feed(context, bp, userId),
+
+              const SliverToBoxAdapter(child: AppFooter()),
+            ],
+          ),
         ),
+      ),
       ),
       floatingActionButton: auth.isAuthor
           ? _WriteFAB(onTap: () =>
@@ -161,8 +205,6 @@ class _BlogListScreenState extends State<BlogListScreen> {
     final blogs = p.blogs;
     final featured = blogs.first;
     final rest = blogs.skip(1).toList();
-    final c = context.colors;
-    final t = context.typography;
 
     return SliverToBoxAdapter(
       child: Padding(
@@ -181,14 +223,18 @@ class _BlogListScreenState extends State<BlogListScreen> {
             _SectionHeader(label: 'ALL ARTICLES'),
             const SizedBox(height: 14),
 
-            ...rest.asMap().entries.map((e) => BlogCard(
-              key: Key('blog_card_${e.value.id}'),
-              blog: e.value,
-              isLiked: e.value.likedBy.contains(userId),
-              onTap: () => Navigator.pushNamed(
-                context, AppConstants.routeBlogDetail, arguments: e.value.id),
-              onLikeTap: () => _handleLike(context, e.value),
-            ).animate(delay: (e.key * 60).ms).fade(duration: 280.ms).slideY(begin: 0.04)),
+            ResponsiveGrid(
+              spacing: 24,
+              runSpacing: 24,
+              children: rest.asMap().entries.map((e) => BlogCard(
+                key: Key('blog_card_${e.value.id}'),
+                blog: e.value,
+                isLiked: e.value.likedBy.contains(userId),
+                onTap: () => Navigator.pushNamed(
+                  context, AppConstants.routeBlogDetail, arguments: e.value.id),
+                onLikeTap: () => _handleLike(context, e.value),
+              ).animate(delay: (e.key * 60).ms).fade(duration: 280.ms).slideY(begin: 0.04)).toList(),
+            ),
           ],
 
           if (p.isLoadingMore)
@@ -198,6 +244,44 @@ class _BlogListScreenState extends State<BlogListScreen> {
             ),
         ]),
       ),
+    );
+  }
+}
+
+// ── Warm-up Banner ────────────────────────────────────────────────────────────
+class _WarmUpBanner extends StatelessWidget {
+  final AppColorsExtension c;
+  const _WarmUpBanner({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: c.accentDeep.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: 16, height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: c.accent,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Server is warming up — articles will appear in a moment…',
+            style: context.typography.bodySmall.copyWith(
+              color: c.inkSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -242,46 +326,36 @@ class _HeroHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.heroBg,
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(children: [
-        // Fine grid background
-        Positioned.fill(child: CustomPaint(painter: _GridPainter())),
+        // Fine grid background — isolated so it never repaints
+        Positioned.fill(
+          child: RepaintBoundary(child: CustomPaint(painter: _GridPainter())),
+        ),
 
         // Glow orbs
-        Positioned(top: -80, right: -40, child: _Orb(size: 260, color: c.accent, alpha: 0.07)),
-        Positioned(bottom: -60, left: -20, child: _Orb(size: 200, color: c.accentWarm, alpha: 0.08)),
-        Positioned(top: 100, left: 60, child: _Orb(size: 100, color: c.accent, alpha: 0.04)),
+        Positioned(top: -60, right: -30, child: _Orb(size: 220, color: c.accent, alpha: 0.07)),
+        Positioned(bottom: -40, left: -10, child: _Orb(size: 160, color: c.accentWarm, alpha: 0.08)),
 
-        // Noise/grain overlay
-        Positioned.fill(child: CustomPaint(painter: _NoisePainter())),
+        // Noise overlay — also isolated
+        Positioned.fill(
+          child: RepaintBoundary(child: CustomPaint(painter: _NoisePainter())),
+        ),
 
         SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 44),
+            // Reduced vertical padding to compress the header height
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
               // ── Nav bar ──────────────────────────────────────────
               Row(children: [
-                // Logo mark
-                Container(
-                  width: 38, height: 38,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [c.accent, c.accentWarm],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.edit_note_rounded, size: 20, color: c.accentDeep),
-                ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 4),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Inkwell', style: t.titleLarge.copyWith(
                       color: c.inkOnDark, letterSpacing: -0.3)),
@@ -338,7 +412,7 @@ class _HeroHeader extends StatelessWidget {
                   ),
               ]).animate().fade(duration: 300.ms),
 
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
 
               // Eyebrow pill
               Container(
@@ -359,43 +433,42 @@ class _HeroHeader extends StatelessWidget {
                 ]),
               ).animate().fade(duration: 350.ms, delay: 50.ms),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
-              // Headline
-              Text('Ideas that\nstick with you.', style: t.hero)
+              // Compressed headline (was 52px, now 38px)
+              Text('Ideas worth\nkeeping.', style: t.hero.copyWith(fontSize: 38, height: 1.0))
                   .animate().fade(duration: 400.ms, delay: 80.ms).slideY(begin: 0.05),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              Text('Curated writing on design, technology,\nand the things that matter.',
-                  style: t.heroSub)
+              Text('Curated writing on design, tech, and the things that matter.',
+                  style: t.heroSub.copyWith(fontSize: 14))
                   .animate().fade(duration: 350.ms, delay: 120.ms),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 22),
 
               // CTA row
               Row(children: [
                 GestureDetector(
                   onTap: () => Navigator.pushNamed(context, AppConstants.routeLogin),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
                     decoration: BoxDecoration(
                       color: c.accent,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: Text('Start reading',
                         style: t.labelLarge.copyWith(color: c.accentDeep, fontSize: 13)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Row(children: [
-                  Icon(Icons.arrow_downward_rounded, size: 14, color: c.inkOnDark.withValues(alpha: 0.5)),
+                  Icon(Icons.arrow_downward_rounded, size: 13, color: c.inkOnDark.withValues(alpha: 0.5)),
                   const SizedBox(width: 6),
                   Text('Scroll to explore',
-                      style: t.bodySmall.copyWith(color: c.inkOnDark.withValues(alpha: 0.5))),
+                      style: t.bodySmall.copyWith(color: c.inkOnDark.withValues(alpha: 0.5), fontSize: 12)),
                 ]),
               ]).animate().fade(duration: 350.ms, delay: 150.ms),
-
             ]),
           ),
         ),
@@ -418,14 +491,14 @@ class _ThemeToggle extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeInOut,
-        width: 52,
-        height: 28,
+        width: 54,
+        height: 30,
         decoration: BoxDecoration(
           color: isDark
-              ? const Color(0xFF3B4BDB).withValues(alpha: 0.7)
-              : inkOnDark.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: inkOnDark.withValues(alpha: 0.2), width: 1),
+              ? inkOnDark.withValues(alpha: 0.15)
+              : const Color(0xFF2C2C2C).withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: inkOnDark.withValues(alpha: 0.1), width: 1),
         ),
         child: Stack(children: [
           AnimatedAlign(
@@ -437,13 +510,19 @@ class _ThemeToggle extends StatelessWidget {
               child: Container(
                 width: 22, height: 22,
                 decoration: BoxDecoration(
-                  color: inkOnDark.withValues(alpha: 0.9),
+                  color: isDark ? inkOnDark : const Color(0xFFF4F0E6),
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4, offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Icon(
                   isDark ? Icons.nightlight_round : Icons.wb_sunny_rounded,
-                  size: 12,
-                  color: isDark ? const Color(0xFF1a1a2e) : const Color(0xFF333300),
+                  size: 13,
+                  color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFD4A017),
                 ),
               ),
             ),
@@ -487,7 +566,6 @@ class _GridPainter extends CustomPainter {
     for (double y = 0; y < size.height; y += step) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
-    // Intersection dots
     final dotPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.10)
       ..style = PaintingStyle.fill;
@@ -535,7 +613,7 @@ class _FeaturedCard extends StatelessWidget {
     final c = context.colors;
     final t = context.typography;
     final hasImage = blog.coverImageUrl != null && blog.coverImageUrl!.isNotEmpty;
-    final authorName = blog.author?.name ?? 'Author';
+    final authorName = blog.author?.name ?? 'Deepanshu kaushik';
 
     return GestureDetector(
       onTap: onTap,
@@ -546,7 +624,7 @@ class _FeaturedCard extends StatelessWidget {
           border: Border.all(color: c.border, width: 1),
           boxShadow: [
             BoxShadow(
-              color: c.ink.withValues(alpha: 0.04),
+              color: c.ink.withValues(alpha: 0.05),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -554,52 +632,75 @@ class _FeaturedCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Cover image / accent strip
-          if (hasImage)
-            Hero(
-              tag: 'blog-cover-${blog.id}',
-              child: CachedNetworkImage(
-                imageUrl: blog.coverImageUrl!,
-                height: 210, width: double.infinity, fit: BoxFit.cover,
-                placeholder: (_, __) => Container(height: 210, color: c.surface),
-                errorWidget: (_, __, ___) => _accentStrip(c),
-              ),
-            )
-          else
-            _accentStrip(c),
+          // ── Cover image / accent strip with gradient overlay ──
+          SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: Stack(fit: StackFit.expand, children: [
+              if (hasImage)
+                Hero(
+                  tag: 'blog-cover-${blog.id}',
+                  child: CachedNetworkImage(
+                    imageUrl: blog.coverImageUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: c.surface),
+                    errorWidget: (_, __, ___) => _accentStrip(c),
+                  ),
+                )
+              else
+                _accentStrip(c),
 
+              // Gradient overlay for legibility
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.4, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        c.ink.withValues(alpha: 0.55),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Badge row floats over image
+              Positioned(
+                top: 14, left: 14,
+                child: Row(children: [
+                  _Badge(label: 'FEATURED', bg: c.accent, text: c.accentDeep),
+                  const SizedBox(width: 8),
+                  ...blog.tags.take(2).map((tag) => Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: TagChip(tag: tag),
+                  )),
+                ]),
+              ),
+            ]),
+          ),
+
+          // ── Content ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Badge row
-              Row(children: [
-                _Badge(label: 'FEATURED', bg: c.accent, text: c.accentDeep),
-                const SizedBox(width: 8),
-                ...blog.tags.take(2).map((tag) => Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: TagChip(tag: tag),
-                )),
-              ]),
-              const SizedBox(height: 14),
-
               Text(blog.title,
                   style: t.displayMedium.copyWith(fontSize: 22, height: 1.2),
                   maxLines: 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               Text(_excerpt(blog.content),
                   style: t.bodyMedium.copyWith(height: 1.65),
-                  maxLines: 3, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 18),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 16),
 
-              // Author + actions
+              // Author + actions row
               Row(children: [
                 Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(
-                    color: c.accent,
-                    shape: BoxShape.circle,
-                  ),
+                  width: 30, height: 30,
+                  decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
                   alignment: Alignment.center,
                   child: Text(
                     authorName.isNotEmpty ? authorName[0].toUpperCase() : 'A',
@@ -633,7 +734,6 @@ class _FeaturedCard extends StatelessWidget {
   }
 
   Widget _accentStrip(AppColorsExtension c) => Container(
-    height: 120,
     decoration: BoxDecoration(
       gradient: LinearGradient(
         colors: [c.accentDeep, c.heroBg],
@@ -648,7 +748,7 @@ class _FeaturedCard extends StatelessWidget {
             shape: BoxShape.circle,
             color: c.accent.withValues(alpha: 0.1)),
       )),
-      Positioned(left: 20, top: 16, child: Icon(
+      Positioned(left: 20, top: 20, child: Icon(
           Icons.edit_note_rounded, size: 52,
           color: c.accent.withValues(alpha: 0.2))),
     ]),

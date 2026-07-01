@@ -158,7 +158,23 @@ class AppTypographyExtension extends ThemeExtension<AppTypographyExtension> {
   );
 
   @override
-  AppTypographyExtension lerp(AppTypographyExtension? other, double t) => this;
+  AppTypographyExtension lerp(covariant AppTypographyExtension? other, double t) {
+    if (other == null) return this;
+    return AppTypographyExtension(
+      hero: TextStyle.lerp(hero, other.hero, t)!,
+      heroSub: TextStyle.lerp(heroSub, other.heroSub, t)!,
+      displayLarge: TextStyle.lerp(displayLarge, other.displayLarge, t)!,
+      displayMedium: TextStyle.lerp(displayMedium, other.displayMedium, t)!,
+      displaySmall: TextStyle.lerp(displaySmall, other.displaySmall, t)!,
+      titleLarge: TextStyle.lerp(titleLarge, other.titleLarge, t)!,
+      titleMedium: TextStyle.lerp(titleMedium, other.titleMedium, t)!,
+      bodyLarge: TextStyle.lerp(bodyLarge, other.bodyLarge, t)!,
+      bodyMedium: TextStyle.lerp(bodyMedium, other.bodyMedium, t)!,
+      bodySmall: TextStyle.lerp(bodySmall, other.bodySmall, t)!,
+      labelLarge: TextStyle.lerp(labelLarge, other.labelLarge, t)!,
+      caption: TextStyle.lerp(caption, other.caption, t)!,
+    );
+  }
 }
 
 // ── Context Extensions ───────────────────────────────────────────────────────
@@ -214,25 +230,25 @@ AppTypographyExtension _buildTypography(AppColorsExtension c) => AppTypographyEx
     fontSize: 15, fontWeight: FontWeight.w400,
     color: c.inkOnDark.withValues(alpha: 0.6), height: 1.55,
   ),
-  displayLarge: GoogleFonts.instrumentSerif(
-    fontSize: 36, fontWeight: FontWeight.w400,
-    color: c.ink, height: 1.06, letterSpacing: -0.8,
+  displayLarge: GoogleFonts.plusJakartaSans(
+    fontSize: 36, fontWeight: FontWeight.w700,
+    color: c.ink, height: 1.1, letterSpacing: -1.0,
   ),
-  displayMedium: GoogleFonts.instrumentSerif(
-    fontSize: 26, fontWeight: FontWeight.w400,
-    color: c.ink, height: 1.12, letterSpacing: -0.4,
+  displayMedium: GoogleFonts.plusJakartaSans(
+    fontSize: 26, fontWeight: FontWeight.w700,
+    color: c.ink, height: 1.15, letterSpacing: -0.6,
   ),
-  displaySmall: GoogleFonts.instrumentSerif(
-    fontSize: 21, fontWeight: FontWeight.w400,
-    color: c.ink, height: 1.2,
+  displaySmall: GoogleFonts.plusJakartaSans(
+    fontSize: 21, fontWeight: FontWeight.w700,
+    color: c.ink, height: 1.2, letterSpacing: -0.4,
   ),
-  titleLarge: GoogleFonts.inter(
-    fontSize: 16, fontWeight: FontWeight.w700,
+  titleLarge: GoogleFonts.plusJakartaSans(
+    fontSize: 17, fontWeight: FontWeight.w700,
+    color: c.ink, height: 1.3, letterSpacing: -0.3,
+  ),
+  titleMedium: GoogleFonts.plusJakartaSans(
+    fontSize: 15, fontWeight: FontWeight.w600,
     color: c.ink, height: 1.3, letterSpacing: -0.2,
-  ),
-  titleMedium: GoogleFonts.inter(
-    fontSize: 14, fontWeight: FontWeight.w600,
-    color: c.ink, height: 1.3,
   ),
   bodyLarge: GoogleFonts.inter(
     fontSize: 17, fontWeight: FontWeight.w400,
@@ -258,26 +274,41 @@ AppTypographyExtension _buildTypography(AppColorsExtension c) => AppTypographyEx
 
 // ── Dark Color Tokens ─────────────────────────────────────────────────────────
 class _DC {
-  static const bg         = Color(0xFF0D1117);
-  static const surface    = Color(0xFF161B22);
-  static const card       = Color(0xFF1C2128);
-  static const white      = Color(0xFF21262D);
-  static const border     = Color(0xFF30363D);
-  static const divider    = Color(0xFF21262D);
-  static const accent     = Color(0xFFC8FF47);
-  static const accentDeep = Color(0xFF2E5000);
-  static const accentWarm = Color(0xFFFF7A3D);
-  static const ink        = Color(0xFFE6EDF3);
-  static const ink2       = Color(0xFF8B949E);
-  static const ink3       = Color(0xFF6E7681);
-  static const inkDark    = Color(0xFFE6EDF3);
-  static const error      = Color(0xFFFF7B72);
-  static const success    = Color(0xFF3FB950);
-  static const tagBg      = Color(0xFF1A2E05);
-  static const tagText    = Color(0xFFC8FF47);
-  static const heroBg     = Color(0xFF0D1117);
-  static const shimBase   = Color(0xFF21262D);
-  static const shimHigh   = Color(0xFF30363D);
+  // Backgrounds
+  static const bg         = Color(0xFF09090B);
+  static const surface    = Color(0xFF111113);
+  static const card       = Color(0xFF18181B);
+  static const white      = Color(0xFFFFFFFF);
+
+  // Borders
+  static const border     = Color(0xFF2A2A2E);
+  static const divider    = Color(0xFF222226);
+
+  // Brand Colors
+  static const accent     = Color(0xFF9EFF00);
+  static const accentDeep = Color(0xFF223B00);
+  static const accentWarm = Color(0xFFFF9A3C);
+
+  // Text
+  static const ink        = Color(0xFFF8F8F8);
+  static const ink2       = Color(0xFFB5B5BC);
+  static const ink3       = Color(0xFF7A7A84);
+  static const inkDark    = Color(0xFFF8F8F8); // MUST be a light color (ink ON dark backgrounds)
+
+  // Status
+  static const error      = Color(0xFFFF5D73);
+  static const success    = Color(0xFF22C55E);
+
+  // Tags
+  static const tagBg      = Color(0xFF223B00);
+  static const tagText    = Color(0xFFB8FF4D);
+
+  // Hero
+  static const heroBg     = Color(0xFF202124);
+
+  // Skeleton Loading
+  static const shimBase   = Color(0xFF18181B);
+  static const shimHigh   = Color(0xFF2B2B31);
 }
 
 AppColorsExtension get darkColors => const AppColorsExtension(
@@ -324,7 +355,7 @@ class AppTheme {
           backgroundColor: c.ink, foregroundColor: c.accent,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
@@ -332,36 +363,45 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: c.ink,
           side: BorderSide(color: c.border, width: 1.2),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true, fillColor: c.surfaceWhite,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         hintStyle: GoogleFonts.inter(fontSize: 14, color: c.inkMuted),
         labelStyle: GoogleFonts.inter(fontSize: 14, color: c.inkSecondary),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.border, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.border, width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.border, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.border, width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.ink, width: 1.5),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.ink, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.error, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.error, width: 1.2),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.error, width: 1.5),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.error, width: 2.0),
         ),
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        backgroundColor: c.background,
       ),
       dividerTheme: DividerThemeData(color: c.divider, thickness: 1, space: 1),
       extensions: [c, t],
@@ -397,7 +437,7 @@ class AppTheme {
           backgroundColor: c.accent, foregroundColor: c.accentDeep,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
@@ -405,36 +445,45 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: c.ink,
           side: BorderSide(color: c.border, width: 1.2),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true, fillColor: c.surfaceWhite,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         hintStyle: GoogleFonts.inter(fontSize: 14, color: c.inkMuted),
         labelStyle: GoogleFonts.inter(fontSize: 14, color: c.inkSecondary),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.border, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.border, width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.border, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.border, width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.accent, width: 1.5),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.accent, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.error, width: 1),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.error, width: 1.2),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: c.error, width: 1.5),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: c.error, width: 2.0),
         ),
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        backgroundColor: c.background,
       ),
       dividerTheme: DividerThemeData(color: c.divider, thickness: 1, space: 1),
       extensions: [c, t],

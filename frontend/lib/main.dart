@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:blog_app/providers/auth_provider.dart';
 import 'package:blog_app/providers/blog_provider.dart';
 import 'package:blog_app/providers/theme_provider.dart';
@@ -23,6 +24,7 @@ import 'package:blog_app/widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

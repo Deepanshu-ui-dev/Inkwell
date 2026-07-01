@@ -1,128 +1,122 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:blog_app/services/api_service.dart';
 import 'package:blog_app/models/blog_model.dart';
 import 'package:blog_app/models/comment_model.dart';
-import 'package:blog_app/services/api_service.dart';
-import 'package:blog_app/utils/constants.dart';
 
 class BlogService {
   final Dio _dio = ApiService.instance.dio;
 
-  // ── File Upload ──────────────────────────────────────────────
-  
-  /// Upload an image and return its URL
-  Future<String> uploadImage(String filePath, String fileName, {List<int>? bytes}) async {
-    final MultipartFile filePart;
-    if (bytes != null) {
-      filePart = MultipartFile.fromBytes(bytes, filename: fileName);
-    } else {
-      filePart = await MultipartFile.fromFile(filePath, filename: fileName);
-    }
+  // ── Blogs ──────────────────────────────────────────────────
 
-    final formData = FormData.fromMap({
-      'image': filePart,
-    });
-    
-    final response = await _dio.post('/upload', data: formData);
-    final data = response.data as Map<String, dynamic>;
-    // The backend returns a relative URL like `/uploads/123.jpg`
-    // We append it to the base URL (removing the /api suffix)
-    final baseUrl = AppConstants.baseUrl.replaceAll('/api', '');
-    return '$baseUrl${data['url']}';
+  Future<Map<String, dynamic>> getBlogs({int page = 1, int limit = 10}) async {
+    final res = await _dio.get('/blogs', queryParameters: {'page': page, 'limit': limit});
+    return res.data as Map<String, dynamic>;
   }
 
-  // ── Blog CRUD ──────────────────────────────────────────────
-
-  /// Fetch paginated list of published blogs.
-  Future<List<BlogModel>> getBlogs({int page = 1, int limit = AppConstants.pageSize}) async {
-    final response = await _dio.get(
-      '/blogs',
-      queryParameters: {'page': page, 'limit': limit},
-    );
-    final data = response.data;
-    final List rawList = data is List ? data : (data['blogs'] as List? ?? []);
-    return rawList.map((e) => BlogModel.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  /// Fetch a single blog by ID.
   Future<BlogModel> getBlog(String id) async {
-    final response = await _dio.get('/blogs/$id');
-    final data = response.data;
-    final blogData = data is Map<String, dynamic>
-        ? (data['blog'] as Map<String, dynamic>? ?? data)
-        : data as Map<String, dynamic>;
-    return BlogModel.fromJson(blogData);
+    final res = await _dio.get('/blogs/$id');
+    return BlogModel.fromJson(res.data['blog']);
   }
 
-  /// Create a new blog (Author only).
   Future<BlogModel> createBlog(Map<String, dynamic> payload) async {
-    final response = await _dio.post('/blogs', data: payload);
-    final data = response.data;
-    final blogData = data is Map<String, dynamic>
-        ? (data['blog'] as Map<String, dynamic>? ?? data)
-        : data as Map<String, dynamic>;
-    return BlogModel.fromJson(blogData);
+    final res = await _dio.post('/blogs', data: payload);
+    return BlogModel.fromJson(res.data['blog']);
   }
 
-  /// Update an existing blog (Author only).
   Future<BlogModel> updateBlog(String id, Map<String, dynamic> payload) async {
-    final response = await _dio.put('/blogs/$id', data: payload);
-    final data = response.data;
-    final blogData = data is Map<String, dynamic>
-        ? (data['blog'] as Map<String, dynamic>? ?? data)
-        : data as Map<String, dynamic>;
-    return BlogModel.fromJson(blogData);
+    final res = await _dio.put('/blogs/$id', data: payload);
+    return BlogModel.fromJson(res.data['blog']);
   }
 
-  /// Delete a blog (Author only).
   Future<void> deleteBlog(String id) async {
     await _dio.delete('/blogs/$id');
   }
 
   // ── Likes ──────────────────────────────────────────────────
 
-  /// Toggle like on a blog (Viewer login required).
-  /// Returns updated [likesCount] and [liked] status.
-  Future<({int likesCount, bool liked})> toggleLike(String blogId) async {
-    final response = await _dio.post('/blogs/$blogId/like');
-    final data = response.data as Map<String, dynamic>;
-    return (
-      likesCount: (data['likesCount'] as num?)?.toInt() ?? 0,
-      liked: data['liked'] as bool? ?? false,
-    );
+  Future<Map<String, dynamic>> toggleLike(String blogId) async {
+    final res = await _dio.post('/blogs/$blogId/like');
+    return res.data as Map<String, dynamic>;
   }
 
-  /// Check if the current viewer has liked a blog.
   Future<bool> getLikeStatus(String blogId) async {
-    final response = await _dio.get('/blogs/$blogId/like-status');
-    final data = response.data as Map<String, dynamic>;
-    return data['liked'] as bool? ?? false;
+    final res = await _dio.get('/blogs/$blogId/like-status');
+    return res.data['liked'] as bool;
   }
 
   // ── Comments ───────────────────────────────────────────────
 
-  /// Fetch comments for a blog (public).
   Future<List<CommentModel>> getComments(String blogId) async {
-    final response = await _dio.get('/blogs/$blogId/comments');
-    final data = response.data;
-    final List rawList = data is List ? data : (data['comments'] as List? ?? []);
-    return rawList.map((e) => CommentModel.fromJson(e as Map<String, dynamic>)).toList();
+    final res = await _dio.get('/blogs/$blogId/comments');
+    final list = res.data['comments'] as List;
+    return list.map((e) => CommentModel.fromJson(e)).toList();
   }
 
-  /// Post a comment (Viewer login required).
   Future<CommentModel> postComment(String blogId, String text) async {
-    final response = await _dio.post(
-      '/blogs/$blogId/comments',
-      data: {'text': text},
-    );
-    final data = response.data;
-    final commentData = data is Map<String, dynamic>
-        ? (data['comment'] as Map<String, dynamic>? ?? data)
-        : data as Map<String, dynamic>;
-    return CommentModel.fromJson(commentData);
+    final res = await _dio.post('/blogs/$blogId/comments', data: {'text': text});
+    return CommentModel.fromJson(res.data['comment']);
   }
 
-  /// Delete a comment (own comment or Author).
   Future<void> deleteComment(String commentId) async {
     await _dio.delete('/comments/$commentId');
+  }
+
+  // ── Image Upload ────────────────────────────────────────────
+  //
+  // Works on both mobile (File path) and web (bytes).
+  // The backend returns a full URL like:
+  //   http://your-server:8000/uploads/1234567890-abc.jpg
+  //
+  // Usage (mobile):
+  //   final url = await blogService.uploadImage(filePath, 'photo.jpg');
+  //
+  // Usage (web):
+  //   final url = await blogService.uploadImage(filePath, 'photo.jpg', bytes: fileBytes);
+
+  Future<String> uploadImage(
+    String filePath,
+    String fileName, {
+    Uint8List? bytes,
+  }) async {
+    late FormData formData;
+
+    if (bytes != null) {
+      // Web — use bytes directly
+      formData = FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          bytes,
+          filename: fileName,
+          contentType: DioMediaType('image', _ext(fileName)),
+        ),
+      });
+    } else {
+      // Mobile — use file path
+      formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+          contentType: DioMediaType('image', _ext(fileName)),
+        ),
+      });
+    }
+
+    final res = await _dio.post('/upload', data: formData);
+
+    final url = res.data['url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw Exception('Upload succeeded but server returned no URL');
+    }
+    return url;
+  }
+
+  String _ext(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    const map = {
+      'jpg': 'jpeg', 'jpeg': 'jpeg',
+      'png': 'png',  'gif': 'gif',
+      'webp': 'webp',
+    };
+    return map[ext] ?? 'jpeg';
   }
 }
