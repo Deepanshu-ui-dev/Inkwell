@@ -1,122 +1,189 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
+import 'package:provider/provider.dart';
+import 'package:blog_app/providers/auth_provider.dart';
+import 'package:blog_app/providers/blog_provider.dart';
+import 'package:blog_app/providers/theme_provider.dart';
+import 'package:blog_app/services/api_service.dart';
+import 'package:blog_app/services/auth_service.dart';
+import 'package:blog_app/services/blog_service.dart';
+import 'package:blog_app/services/storage_service.dart';
+import 'package:blog_app/services/version_service.dart';
+import 'package:blog_app/utils/app_theme.dart';
+import 'package:blog_app/utils/constants.dart';
+import 'package:blog_app/screens/auth/login_screen.dart';
+import 'package:blog_app/screens/auth/signup_screen.dart';
+import 'package:blog_app/screens/blogs/blog_list_screen.dart';
+import 'package:blog_app/screens/blogs/blog_detail_screen.dart';
+import 'package:blog_app/screens/blogs/blog_editor_screen.dart';
+import 'package:blog_app/screens/profile/profile_screen.dart';
+import 'package:blog_app/models/blog_model.dart';
+import 'package:blog_app/widgets/update_dialog.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.transparent,
+  ));
+
+  final storageService = StorageService();
+  ApiService.instance.init(storageService);
+
+  final authService = AuthService();
+  final blogService = BlogService();
+
+  final authProvider = AuthProvider(
+    authService: authService,
+    storageService: storageService,
+  );
+  await authProvider.tryAutoLogin();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        ChangeNotifierProvider<BlogProvider>(
+          create: (_) => BlogProvider(blogService: blogService),
+        ),
+        ChangeNotifierProvider<ThemeProvider>(
+          create: (_) => ThemeProvider(),
+        ),
+      ],
+      child: const BlogApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.trackpad,
+  };
 
-  // This widget is the root of your application.
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+}
+
+class BlogApp extends StatefulWidget {
+  const BlogApp({super.key});
+
+  @override
+  State<BlogApp> createState() => _BlogAppState();
+}
+
+class _BlogAppState extends State<BlogApp> {
+  final _versionService = VersionService();
+  final _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVersion());
+  }
+
+  Future<void> _checkVersion() async {
+    final info = await _versionService.checkVersion();
+    if (info == null) return;
+    if (!mounted) return;
+
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    if (_versionService.requiresForceUpgrade(info)) {
+      await showUpdateDialog(ctx, info: info, forceUpgrade: true);
+    } else if (_versionService.hasSoftUpdate(info)) {
+      await showUpdateDialog(ctx, info: info, forceUpgrade: false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarColor: isDark ? const Color(0xFF0D1117) : const Color(0xFFF4F0E6),
+      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    ));
+
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'Inkwell',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.themeMode,
+      navigatorKey: _navigatorKey,
+      scrollBehavior: _AppScrollBehavior(),
+      initialRoute: AppConstants.routeBlogList,
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case AppConstants.routeBlogList:
+            return _fadeRoute(const BlogListScreen(), settings);
+          case AppConstants.routeLogin:
+            return _slideRoute(const LoginScreen(), settings);
+          case AppConstants.routeSignup:
+            return _slideRoute(const SignupScreen(), settings);
+          case AppConstants.routeProfile:
+            return _slideRoute(const ProfileScreen(), settings);
+          case AppConstants.routeBlogDetail:
+            final blogId = settings.arguments as String;
+            return _fadeRoute(BlogDetailScreen(blogId: blogId), settings);
+          case AppConstants.routeBlogEditor:
+            final blog = settings.arguments as BlogModel?;
+            return _slideRoute(BlogEditorScreen(blog: blog), settings);
+          default:
+            return _fadeRoute(const BlogListScreen(), settings);
+        }
+      },
     );
   }
-}
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  PageRoute _fadeRoute(Widget page, RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 260),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+  PageRoute _slideRoute(Widget page, RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.04),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 }
