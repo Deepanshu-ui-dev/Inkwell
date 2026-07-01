@@ -103,8 +103,8 @@ async function deleteBlog(req, res) {
   try {
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ error: "Blog not found" });
-    if (blog.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "Forbidden — not the author" });
+    if (blog.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden — not the author or admin" });
     }
     await Blog.findByIdAndDelete(req.params.id);
     await Comment.deleteMany({ blog: req.params.id });

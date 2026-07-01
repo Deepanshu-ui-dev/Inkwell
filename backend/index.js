@@ -3,29 +3,48 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
 
-const authRoutes = require("./routes/auth");
-const blogRoutes = require("./routes/blog");
-const uploadRoutes = require("./routes/upload");
+const authRoutes    = require("./routes/auth");
+const blogRoutes    = require("./routes/blog");
+const uploadRoutes  = require("./routes/upload");
 const versionRoutes = require("./routes/version");
 const { requireAuth } = require("./middleware/auth");
 const { deleteComment } = require("./controllers/blog");
-const path = require("path");
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 8000;
 
-// ── Middleware ──────────────────────────────────────────────
+// ── Ensure uploads dir exists ───────────────────────────────
+const uploadsDir = path.join(__dirname, "public/uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// ── CORS ────────────────────────────────────────────────────
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
+// ── Body parsers ────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Serve static files from public directory
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+// ── Static files — serve uploads with CORS headers ─────────
+// This is the critical part — without proper headers Flutter web
+// and CachedNetworkImage will fail to load images.
+app.use("/uploads", (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+}, express.static(path.join(__dirname, "public/uploads"), {
+  maxAge: "7d",         // cache images for 7 days
+  etag: true,
+  lastModified: true,
+}));
 
 // ── Routes ──────────────────────────────────────────────────
 app.get("/", (req, res) => res.json({
@@ -35,7 +54,6 @@ app.get("/", (req, res) => res.json({
   status: "healthy",
 }));
 
-// Health check endpoint
 app.get("/api/health", (req, res) => res.json({
   status: "ok",
   uptime: Math.floor(process.uptime()),
@@ -43,16 +61,14 @@ app.get("/api/health", (req, res) => res.json({
   database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
 }));
 
-app.use("/api/auth", authRoutes);
-app.use("/api/blogs", blogRoutes);
-app.use("/api/upload", uploadRoutes);
+app.use("/api/auth",    authRoutes);
+app.use("/api/blogs",   blogRoutes);
+app.use("/api/upload",  uploadRoutes);
 app.use("/api/version", versionRoutes);
 
-// Delete comment lives outside /blogs because the frontend calls DELETE /comments/:id
 app.delete("/api/comments/:id", requireAuth, deleteComment);
 
-
-// ── 404 handler ─────────────────────────────────────────────
+// ── 404 ─────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
 });
@@ -60,15 +76,18 @@ app.use((req, res) => {
 // ── Global error handler ────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
+  res.status(err.status || 500).json({ error: err.message || "Internal server error" });
 });
 
-// ── Connect to MongoDB, then start server ───────────────────
+// ── Start ────────────────────────────────────────────────────
 mongoose
   .connect(process.env.MONGO_URI, { dbName: "blog_app_db" })
   .then(() => {
     console.log("✅ MongoDB connected");
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📁 Uploads served from http://localhost:${PORT}/uploads/`);
+    });
   })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
