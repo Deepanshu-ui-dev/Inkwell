@@ -93,9 +93,10 @@ class _BlogListScreenState extends State<BlogListScreen> {
 
     return Scaffold(
       backgroundColor: c.background,
-      body: GlobalBackground(
-        child: ResponsiveWrapper(
-          maxWidth: 1200,
+      body: SafeArea(
+        child: GlobalBackground(
+          child: ResponsiveWrapper(
+            maxWidth: 1200,
         addPadding: true,
         child: LiquidPullToRefresh(
           onRefresh: () => context.read<BlogProvider>().fetchBlogs(refresh: true),
@@ -125,10 +126,21 @@ class _BlogListScreenState extends State<BlogListScreen> {
               else
                 _feed(context, bp, userId),
 
-              const SliverToBoxAdapter(child: AppFooter()),
+              SliverFillRemaining(
+                hasScrollBody: false,
+                fillOverscroll: true,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 48.0),
+                    child: const AppFooter(),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+      ),
       ),
       ),
       floatingActionButton: auth.isAuthor
@@ -346,14 +358,12 @@ class _HeroHeader extends StatelessWidget {
           child: RepaintBoundary(child: CustomPaint(painter: _NoisePainter())),
         ),
 
-        SafeArea(
-          bottom: false,
-          child: Padding(
-            // Reduced vertical padding to compress the header height
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          // Reduced vertical padding to compress the header height
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-              // ── Nav bar ──────────────────────────────────────────
+            // ── Nav bar ──────────────────────────────────────────
               Row(children: [
                 const SizedBox(width: 4),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -471,7 +481,6 @@ class _HeroHeader extends StatelessWidget {
               ]).animate().fade(duration: 350.ms, delay: 150.ms),
             ]),
           ),
-        ),
       ]),
     );
   }

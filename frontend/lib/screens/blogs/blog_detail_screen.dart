@@ -174,9 +174,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
 
     return Scaffold(
       backgroundColor: c.background,
-      body: GlobalBackground(
-        child: Stack(children: [
-          ResponsiveWrapper(
+      body: SafeArea(
+        child: GlobalBackground(
+          child: Stack(children: [
+            ResponsiveWrapper(
           maxWidth: 820,
           child: CustomScrollView(
             controller: _scrollController,
@@ -383,11 +384,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         // ── Reading progress bar — only this widget repaints on scroll ──
         Positioned(
           top: 0, left: 0, right: 0,
-          child: SafeArea(
-            bottom: false,
-            child: ValueListenableBuilder<double>(
-              valueListenable: _progressNotifier,
-              builder: (ctx, progress, __) => LayoutBuilder(
+          child: ValueListenableBuilder<double>(
+            valueListenable: _progressNotifier,
+            builder: (ctx, progress, __) => LayoutBuilder(
                 builder: (ctx, constraints) => Stack(children: [
                   Container(height: 3, color: c.border.withValues(alpha: 0.4)),
                   AnimatedContainer(
@@ -401,15 +400,13 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                 ]),
               ),
             ),
-          ),
         ),
 
         // Floating action bar
         Positioned(
           left: 24, right: 24, bottom: 24,
-          child: SafeArea(
-            child: Center(
-              child: Container(
+          child: Center(
+            child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: c.surfaceCard,
@@ -439,9 +436,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                 ]),
               ).animate().slideY(begin: 1.5, duration: 400.ms, curve: Curves.easeOutBack),
             ),
-          ),
         ),
       ]),
+      ),
       ),
     );
   }

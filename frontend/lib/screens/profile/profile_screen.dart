@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:blog_app/providers/auth_provider.dart';
+import 'package:blog_app/providers/theme_provider.dart';
 import 'package:blog_app/utils/app_theme.dart';
 import 'package:blog_app/utils/constants.dart';
 import 'package:blog_app/widgets/app_snackbar.dart';
@@ -31,10 +32,11 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: c.background,
-      body: GlobalBackground(
-        child: ResponsiveWrapper(
-          maxWidth: 640,
-          child: CustomScrollView(
+      body: SafeArea(
+        child: GlobalBackground(
+          child: ResponsiveWrapper(
+            maxWidth: 640,
+            child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
             // ── App bar ─────────────────────────────────────────────
@@ -222,6 +224,47 @@ class ProfileScreen extends StatelessWidget {
                   // ── Account ───────────────────────────────────────
                   _SectionLabel(label: 'ACCOUNT', c: c, t: t),
                   const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => context.read<ThemeProvider>().toggleTheme(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: c.surfaceCard,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: c.border),
+                      ),
+                      child: Row(children: [
+                        Icon(
+                          context.watch<ThemeProvider>().isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                          size: 18, color: c.ink,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          context.watch<ThemeProvider>().isDarkMode ? 'Light mode' : 'Dark mode',
+                          style: t.titleMedium,
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 44, height: 24,
+                          decoration: BoxDecoration(
+                            color: context.watch<ThemeProvider>().isDarkMode ? c.accent : c.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: c.border),
+                          ),
+                          alignment: context.watch<ThemeProvider>().isDarkMode ? Alignment.centerRight : Alignment.centerLeft,
+                          padding: const EdgeInsets.all(3),
+                          child: Container(
+                            width: 18, height: 18,
+                            decoration: BoxDecoration(
+                              color: context.watch<ThemeProvider>().isDarkMode ? c.accentDeep : c.inkMuted,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _ActionTile(
                     key: const Key('logout_button'),
                     icon: Icons.logout_rounded,
@@ -269,6 +312,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
       ),
     );
