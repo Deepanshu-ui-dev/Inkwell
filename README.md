@@ -1,86 +1,157 @@
-# Inkwell - Thoughtful Writing
+<div align="center">
 
-A full-stack mobile blog application built with Flutter and Node.js. 
-Inkwell allows users to read, write, and react to thoughtfully curated blogs.
+# 🖋️ Inkwell — Thoughtful Writing
+
+**A full-stack mobile blogging app for reading, writing, and reacting to thoughtfully curated stories.**
+
+Built with **Flutter** on the front end and **Node.js (Express + MongoDB)** on the back end.
+
+[![Flutter](https://img.shields.io/badge/Flutter-Dart-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](#-license)
+
+[📲 Download APK](../../releases/latest) · [🚀 Features](#-features) · [🛠 Setup](#️-getting-started) · [📁 Structure](#-folder-structure)
+
+</div>
+
+---
+
+## 📲 Download
+
+Grab the latest signed build straight from the **Releases** page — no build setup required:
+
+<div align="center">
+
+### [⬇️ Download Inkwell APK (Latest Release)](../../releases/latest)
+
+</div>
+
+> Go to the **[Releases](../../releases)** tab of this repo and grab the `.apk` file from the **Assets** section of the newest release. Enable *"Install from unknown sources"* on your Android device if prompted.
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+| Home | Sign In | Article Editor |
+|:---:|:---:|:---:|
+| <img src="frontend/Screens/home-light.jpeg" width="220"/> | <img src="frontend/Screens/signin.jpeg" width="220"/> | <img src="frontend/Screens/blog-editing.jpeg" width="220"/> |
+
+| Profile | Light Mode | Dark Mode |
+|:---:|:---:|:---:|
+| <img src="frontend/Screens/light-profile.jpeg" width="220"/> | <img src="frontend/Screens/desc-light.jpeg" width="220"/> | <img src="frontend/Screens/des-dark.jpeg" width="220"/> |
+
+</div>
+
+> If any image doesn't render, double-check the screenshot paths above match where the images actually live in the repo tree.
+
+---
 
 ## 🚀 Features
 
-- **Read & Write Articles:** Seamlessly read articles, and authors can write new articles using markdown.
-- **Dynamic Theming:** Built-in Light and Dark modes.
-- **Authentication:** Secure user signup and sign-in functionality.
-- **Interactive UI:** Smooth transitions, responsive design, shimmer loading effects, and micro-animations.
-- **Reactions:** Like articles and see what others are engaging with.
-- **Profile Dashboard:** View your stats, liked articles, and author tools (if permitted).
+| | |
+|---|---|
+| ✍️ **Read & Write** | Browse curated articles and write your own using a full Markdown editor |
+| 🌗 **Dynamic Theming** | Polished built-in Light and Dark modes |
+| 🔐 **Authentication** | Secure sign-up / sign-in with JWT-based sessions |
+| 🎬 **Interactive UI** | Smooth transitions, shimmer loading states, and micro-animations |
+| ❤️ **Reactions** | Like articles and see engagement in real time |
+| 📊 **Profile Dashboard** | Track your stats, liked articles, and author tools (if permitted) |
+
+---
+
+## 🧱 Tech Stack
+
+- **Frontend:** Flutter (Dart)
+- **Backend:** Node.js, Express
+- **Database:** MongoDB
+- **Auth:** JWT
 
 ---
 
 ## 📁 Folder Structure
 
-The repository is organized into two main parts:
-
-- `frontend/` - Contains the Flutter application.
-- `backend/` - Contains the Node.js (Express + MongoDB) REST API.
-
----
-
-## 🛠️ Backend Setup (Node.js)
-
-1. **Navigate to the backend directory:**
-   ```bash
-   cd backend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Configure Environment Variables:**
-   - Copy the `.env.example` file to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Open `.env` and fill in your secrets (e.g., MongoDB URI, JWT Secret).
-   - Ensure you never commit your actual `.env` file to version control.
-
-4. **Start the server:**
-   ```bash
-   npm run dev
-   # or
-   node index.js
-   ```
-   The backend should now be running (usually on `http://localhost:8000`).
+```
+Inkwell/
+├── frontend/     # Flutter application
+│   └── Screens/  # UI screenshots used in this README
+├── backend/      # Node.js (Express + MongoDB) REST API
+└── README.md
+```
 
 ---
 
-## 📱 Frontend Setup (Flutter)
+## 🛠️ Getting Started
 
-1. **Navigate to the frontend directory:**
-   ```bash
-   cd frontend
-   ```
+### Prerequisites
 
-2. **Install dependencies:**
-   ```bash
-   flutter pub get
-   ```
+- [Node.js](https://nodejs.org) (LTS) and npm
+- [Flutter SDK](https://docs.flutter.dev/get-started/install)
+- A running MongoDB instance (local or [Atlas](https://www.mongodb.com/atlas))
 
-3. **Configure Environment Variables:**
-   - Copy the `.env.example` file to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Open `.env` and set your `API_BASE_URL`.
-     - For Linux/macOS/Windows desktop: `http://127.0.0.1:8000/api`
-     - For Android Emulator: `http://10.0.2.2:8000/api`
-     - For real devices, use your computer's local IP address.
+### 1. Clone the repository
 
-4. **Run the App:**
-   ```bash
-   flutter run
-   ```
+```bash
+git clone https://github.com/Deepanshu-ui-dev/Inkwell.git
+cd Inkwell
+```
+
+### 2. Backend Setup (Node.js)
+
+```bash
+cd backend
+npm install
+cp .env.example .env   # then fill in your MongoDB URI, JWT secret, etc.
+npm run dev            # or: node index.js
+```
+
+The backend runs on `http://localhost:8000` by default.
+
+### 3. Frontend Setup (Flutter)
+
+```bash
+cd frontend
+flutter pub get
+cp .env.example .env    # then set API_BASE_URL
+flutter run
+```
+
+**`API_BASE_URL` values:**
+
+| Environment | URL |
+|---|---|
+| Desktop (Linux/macOS/Windows) | `http://127.0.0.1:8000/api` |
+| Android Emulator | `http://10.0.2.2:8000/api` |
+| Physical Device | `http://<your-computer-local-IP>:8000/api` |
+
+---
 
 ## 🔒 Security Notes
 
-- The `frontend/.env` and `backend/.env` files have been added to `.gitignore`. They will not be pushed to GitHub to prevent exposing API keys and secrets.
-- Always use the `.env.example` files to document required variables for other developers.
+- `frontend/.env` and `backend/.env` are git-ignored and will never be pushed — always copy from the matching `.env.example` file.
+- Never commit real API keys, database URIs, or JWT secrets.
+
+---
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome!
+Feel free to check the [issues page](../../issues) or open a pull request.
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+## 👤 Author
+
+**Deepanshu** — [@Deepanshu-ui-dev](https://github.com/Deepanshu-ui-dev)
+
+---
+
+<div align="center">
+
+If you like this project, consider giving it a ⭐ on GitHub!
+
+</div>
