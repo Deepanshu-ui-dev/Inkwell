@@ -37,11 +37,11 @@ Grab the latest signed build straight from the **Releases** page — no build se
 
 | Home | Sign In | Article Editor |
 |:---:|:---:|:---:|
-| <img src="frontend/Screens/home-light.jpeg" width="220"/> | <img src="frontend/Screens/signin.jpeg" width="220"/> | <img src="frontend/Screens/blog-editing.jpeg" width="220"/> |
+| <img src="Screens/home-light.jpeg" width="220"/> | <img src="Screens/signin.jpeg" width="220"/> | <img src="Screens/blog-editing.jpeg" width="220"/> |
 
 | Profile | Light Mode | Dark Mode |
 |:---:|:---:|:---:|
-| <img src="frontend/Screens/light-profile.jpeg" width="220"/> | <img src="frontend/Screens/desc-light.jpeg" width="220"/> | <img src="frontend/Screens/des-dark.jpeg" width="220"/> |
+| <img src="Screens/light-profile.jpeg" width="220"/> | <img src="Screens/desc-light.jpeg" width="220"/> | <img src="Screens/des-dark.jpeg" width="220"/> |
 
 </div>
 
