@@ -45,7 +45,6 @@ Grab the latest signed build straight from the **Releases** page — no build se
 
 </div>
 
-> If any image doesn't render, double-check the screenshot paths above match where the images actually live in the repo tree.
 
 ---
 
